@@ -1,5 +1,7 @@
 # Created by .ignore support plugin (hsz.mobi)
 models/
 notebooks/
-.idea
-__pycache__
+.idea/
+*.xml
+*.pyc
+

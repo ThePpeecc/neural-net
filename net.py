@@ -1,4 +1,5 @@
 import numpy as np
+import matplotlib.pyplot as plt
 from typing import Union, Tuple, List
 
 np.random.seed(0)
@@ -72,6 +73,11 @@ class Net:
                          by default we don't want them
         :return: We return out a vector with the networks predictions
         """
+
+        # Here we update our input if its only one data input
+        if len(ind.shape) < 2:
+            ind = np.array([ind])
+
         finalResult = []
         layerResults = []
         for x in ind:
@@ -143,23 +149,110 @@ class Net:
                 self.hiddenLayers[i] += weightGrad
                 self.hiddenBiases[i] += gradient.T
 
-    def trainNetwork(self, rounds: int = 100, numberOfSets: int = 20) -> None:
+    def accuracy(self, data: np.ndarray, labels: np.ndarray) -> float:
+        """
+        Simply calculates the accuracy of the network on new data
+        :param data: The new data that we want to see how accurate we are on
+        :param labels: The labels for said data
+        :return: We finally return the accuracy percentage
+        """
+
+        # First we predict what our data is
+        predictions = self.predict(data)
+
+        errors = np.absolute(predictions-labels)
+
+        cleanedErrors = []
+        for error in errors:
+            if error.sum() != 0:
+                cleanedErrors.append(1)
+            else:
+                cleanedErrors.append(0)
+        cleanedErrors = np.array(cleanedErrors)
+        # The we calculate the error sum
+        errorSum = cleanedErrors.sum()
+        # And finally we calculate how accurate we are
+        accuracy = round(1-errorSum/len(data), 3)
+
+        return accuracy
+
+    def costRate(self, data: np.ndarray, labels: np.ndarray) -> float:
+        """
+        This method calculates the total error cost of some data given to the network
+        :param data: Data we want to calculate the error cost on for the network
+        :param labels: The labels for the data, used to calculate the error
+        :return: The error cost
+        """
+
+        # Start cost
+        cost = 0
+
+        # We loop over the data and sum up the errors
+        for i in range(len(data)):
+            results = self.predict(data[i], getPercentage=True)
+            cost += np.sum(np.power(labels[i].reshape(results.shape) - results, 2))
+
+        # Finally we return the cost
+        return round(cost, 3)
+
+    def predict(self, data: np.ndarray, getPercentage: bool = False) -> np.ndarray:
+        """
+        This method tries to predict the label of some data that it is given, by running it through the network.
+        It will pick the result it is most confident with, and then round the numbers.
+        :param data: The data to try to predict the labels for
+        :param getPercentage: If we want to have the percentage of the confidence of the network on all
+        :return:
+        """
+
+        # We run the data through our network
+        result = self.feedForward(data)
+
+        if getPercentage:
+            # If we want to have the percentages, we just return our result
+            return result
+        else:
+            # We run through our results and figure out what our most confident guess is, and round that up, and
+            # remove the rest
+            for i in range(len(result)):
+                # First we fold out our current result
+                pred = result[i].ravel()
+
+                # We find our most confident guess
+                maxIndex = np.argmax(pred)
+
+                # We reset our prediction and insert a 1 where we are most confident,
+                # and the reinsert it back into our results array
+                pred = np.multiply(pred, 0)
+                pred[maxIndex] = 1
+                result[i] = pred.reshape(result[i].shape)
+            return result
+
+    def trainNetwork(self, rounds: int = 100, numberOfSets: int = 20, verbose: bool = True, saveRate: int = 20) -> None:
         """
         This function trains the network via Stochastic Gradient Descent, a specified number of rounds
+        :param saveRate: This determines how often we save our error rate
+        :param verbose: This boolean turns on our off our print and plotting part
         :param numberOfSets: This is the number of training sets that the network trains on each round.
                              The sets are picked randomly from the given training set.
         :param rounds: The number of rounds we wan't to train the network
         """
 
-        # X is the counter we use to that we have an idea of how far we are in the training
+        # X is the counter we use to that we have an idea of how far we are in the training,
+        # and y is our save rate counter
         x = 1
+        y = 1
+
+        # Here we save our errors each round so that we can plot our convergence rate,
+        # and x axis is where we took our error measurements
+        errorRates = []
+        xAxis = []
 
         # We take a copy of our data
         trainCopy = self.trainingSet.copy()
         trainCopyLabel = self.trainingLabels.copy()
 
         for i in range(rounds):
-            if i >= 1000*x:
+            if i >= 1000*x and verbose:
                 x += 1
                 print('Iteration ' + str(i) + ' have been reached')
 
@@ -180,3 +273,14 @@ class Net:
                 trainCopy = np.delete(trainCopy, permutation, axis=0)
                 trainCopyLabel = np.delete(trainCopyLabel, permutation, axis=0)
 
+            if i >= saveRate*y and verbose:
+                y += 1
+                xAxis.append(i)
+                errorRates.append(self.costRate(self.trainingSet, self.trainingLabels))
+
+        if verbose:
+            plt.plot(xAxis, errorRates, linewidth=2.0)
+            plt.ylabel('Our error rates each round')
+            plt.xlabel('Measurement points')
+            plt.title('Error rate convergence')
+            plt.show()

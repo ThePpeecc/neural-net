@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from net import Net
 
 flowerData = np.loadtxt('data/iris-flower-data', dtype=str, delimiter=',')
@@ -24,18 +23,22 @@ def preprocess(ind: np.ndarray) -> np.ndarray:
 labels = np.array(labels)
 dataVectors = preprocess(flowerData[:, 0:4].astype(float))
 
-nn = Net(dataVectors, labels, learningRate=0.01)
+permutation = np.random.permutation(len(labels))[0:30]
+
+testLabels = labels[permutation]
+testVectors = dataVectors[permutation]
+trainingLabels = np.delete(labels, permutation, axis=0)
+trainingVectors = np.delete(dataVectors, permutation, axis=0)
+
+
+nn = Net(trainingVectors, trainingLabels, learningRate=0.01)
+nn.createNeuronLayer(10)
 nn.createNeuronLayer(10)
 nn.createNeuronLayer(3)
 
 nn.trainNetwork(5000)
 
-res = 0
-for i in range(150):
-    d1 = np.array([dataVectors[i]])
-    r = nn.feedForward(d1)
-    res += np.sum(np.power(labels[i].reshape(r.shape)-r, 2))
-
-print(res)
+print('Accuracy: ' + str(nn.accuracy(testVectors, testLabels)))
+print('Total Error: ' + str(nn.costRate(testVectors, testLabels)))
 
 exit(0)

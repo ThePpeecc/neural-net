@@ -1,8 +1,9 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union, Tuple, List
+from progress.bar import Bar
 
-np.random.seed(0)
+# np.random.seed(0)
 np.set_printoptions(suppress=True)
 
 
@@ -28,6 +29,11 @@ class Net:
         self.hiddenLayers = []
         self.hiddenBiases = []
         self.learningRate = learningRate
+
+        # Here we save our errors each round so that we can plot our convergence rate,
+        # and x axis is where we took our error measurements
+        self.errorRates = []
+        self.xAxis = []
 
     def addHiddenLayer(self, layer: np.ndarray, bias: np.ndarray) -> None:
         """
@@ -227,36 +233,63 @@ class Net:
                 result[i] = pred.reshape(result[i].shape)
             return result
 
-    def trainNetwork(self, rounds: int = 100, numberOfSets: int = 20, verbose: bool = True, saveRate: int = 20) -> None:
+    def saveNetwork(self, fileName: str) -> None:
+        """
+        This method saves the network in two .npy files.
+        It will add w to one file for the weights, and a b for the bias file.
+        :param fileName: The path to the file
+        """
+        np.save(fileName + 'w', self.hiddenLayers)
+        bias = []
+        for i in range(len(self.hiddenBiases)):
+            bias.append(self.hiddenBiases[i].ravel())
+        np.save(fileName + 'b', bias)
+
+    def loadNetwork(self, fileName: str) -> None:
+        """
+        This method loads a saved network.
+        It will automatically load in the w and b files, so don't add w.npy or b.npy to the ned of the file name
+        :param fileName: The path to the file
+        """
+        self.hiddenLayers = []
+        self.hiddenBiases = []
+        for l in np.load(fileName + 'w.npy'):
+            self.hiddenLayers.append(l)
+        for b in np.load(fileName + 'b.npy'):
+            self.hiddenBiases.append(np.array([b]))
+
+    def trainNetwork(self, rounds: int = 100, batchSize: int = 20, sampleCost: int = 20, verbose: bool = True, saveRate: int = 20) -> None:
         """
         This function trains the network via Stochastic Gradient Descent, a specified number of rounds
+        :param sampleCost: This is the number of samples we pull when we calculate the cost rate
         :param saveRate: This determines how often we save our error rate
         :param verbose: This boolean turns on our off our print and plotting part
-        :param numberOfSets: This is the number of training sets that the network trains on each round.
-                             The sets are picked randomly from the given training set.
+        :param batchSize: This is the number of training sets that the network trains on each round.
+                          The batches are picked randomly from the given training set.
         :param rounds: The number of rounds we wan't to train the network
         """
 
-        # X is the counter we use to that we have an idea of how far we are in the training,
-        # and y is our save rate counter
-        x = 1
+        # y is our save rate counter
         y = 1
 
-        # Here we save our errors each round so that we can plot our convergence rate,
-        # and x axis is where we took our error measurements
-        errorRates = []
-        xAxis = []
+        # Setting up progress bar
+        bar = Bar('Training 🤖:', fill='🐝️', max=rounds)
 
         # We take a copy of our data
         trainCopy = self.trainingSet.copy()
         trainCopyLabel = self.trainingLabels.copy()
 
         for i in range(rounds):
-            if i >= 1000*x and verbose:
-                x += 1
-                print('Iteration ' + str(i) + ' have been reached')
 
-            if len(trainCopy) < numberOfSets:
+            if verbose:
+                bar.next()
+                if i >= saveRate*y:
+                    y += 1
+                    self.xAxis.append(i)
+                    permutation = np.random.permutation(len(self.trainingSet))[0:sampleCost]
+                    self.errorRates.append(self.costRate(self.trainingSet[permutation], self.trainingLabels[permutation]))
+
+            if len(trainCopy) < batchSize:
                 # We are running low on our training set, so we run back prop on the last remaining data
                 self.backPropagation(trainCopy, trainCopyLabel)
 
@@ -265,7 +298,7 @@ class Net:
                 trainCopyLabel = self.trainingLabels.copy()
             else:
                 # We pull some random indices from our training set
-                permutation = np.random.permutation(len(trainCopy))[0:numberOfSets]
+                permutation = np.random.permutation(len(trainCopy))[0:batchSize]
                 # We run our back prop on the subsets
                 self.backPropagation(trainCopy[permutation], trainCopyLabel[permutation])
 
@@ -273,14 +306,11 @@ class Net:
                 trainCopy = np.delete(trainCopy, permutation, axis=0)
                 trainCopyLabel = np.delete(trainCopyLabel, permutation, axis=0)
 
-            if i >= saveRate*y and verbose:
-                y += 1
-                xAxis.append(i)
-                errorRates.append(self.costRate(self.trainingSet, self.trainingLabels))
-
         if verbose:
-            plt.plot(xAxis, errorRates, linewidth=2.0)
+            print('Finished training 🎓')
+            bar.finish()
+            plt.plot(self.xAxis, self.errorRates, linewidth=2.0)
             plt.ylabel('Our error rates each round')
             plt.xlabel('Measurement points')
-            plt.title('Error rate convergence')
+            plt.title('Error rate convergence, with sample sizes of: ' + str(sampleCost) + '\n Learning Rate: ' + str(self.learningRate))
             plt.show()

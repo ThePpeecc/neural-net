@@ -36,7 +36,7 @@ nn.createNeuronLayer(10)
 nn.createNeuronLayer(10)
 nn.createNeuronLayer(3)
 
-nn.trainNetwork(5000)
+nn.trainNetwork(5000, sampleCost=130)
 
 print('Accuracy: ' + str(nn.accuracy(testVectors, testLabels)))
 print('Total Error: ' + str(nn.costRate(testVectors, testLabels)))

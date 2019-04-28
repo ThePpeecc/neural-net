@@ -38,7 +38,7 @@ nn.createNeuronLayer(3)
 
 nn.trainNetwork(5000, sampleCost=130)
 
-print('Accuracy: ' + str(nn.accuracy(testVectors, testLabels)))
+print('Accuracy 🎯: ' + str(nn.accuracy(testVectors, testLabels)))
 print('Total Error: ' + str(nn.costRate(testVectors, testLabels)))
 
 exit(0)

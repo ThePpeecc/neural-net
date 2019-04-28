@@ -1,12 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from typing import Union, Tuple, List
+from typing import Union, Tuple, List, Dict, Callable
 from progress.bar import Bar
-
+from enum import Enum
 # np.random.seed(0)
 np.set_printoptions(suppress=True)
 
 
+# ------ ACTIVATION FUNCTIONS START ------
 def sigmoid(ind: np.ndarray) -> np.ndarray:
     """
     Simply calculates the sigmoid of a given input
@@ -14,6 +15,105 @@ def sigmoid(ind: np.ndarray) -> np.ndarray:
     :return: The resulting data after having been run through the sigmoid function
     """
     return 1 / (1 + np.exp(-ind))
+
+
+def sigmoidDerived(ind: np.ndarray) -> np.ndarray:
+    """
+    Simply calculates the derivative of a sigmoid output
+    :param ind: The given input to be performed the derivative on
+    :return: The resulting data after having calculated the derivative
+    """
+    return np.multiply(ind, (1-ind))
+
+
+def relu(ind: np.ndarray) -> np.ndarray:
+    """
+    Simply calculates the relu of a given input
+    :param ind: The given input to be performed relu on
+    :return: The resulting data after having been run through the relu function
+    """
+    return np.maximum(ind, 0.0)
+
+
+def reluDerived(ind: np.ndarray) -> np.ndarray:
+    """
+    Simply calculates the derivative of a relu output
+    :param ind: The given input to be performed the derivative on
+    :return: The resulting data after having calculated the derivative
+    """
+    ind[ind < 0] = 0.0
+    ind[ind > 0] = 1.0
+    return ind
+
+
+def softmax(ind: np.ndarray) -> np.ndarray:
+    """
+    Simply calculates the softmax of a given input.
+    Note that the softmax function should only be used on the output layer,
+    and is best used when having to deal with a classification problem.
+    :param ind: The given input to be performed softmax on
+    :return: The resulting data after having been run through the softmax function
+    """
+    ex = np.exp(ind)
+    return ex/np.sum(ex)
+
+
+def softmaxDerived(ind: np.ndarray) -> np.ndarray:
+    """
+    Simply calculates the derivative of a softmax output
+    :param ind: The given input to be performed the derivative on
+    :return: The resulting data after having calculated the derivative
+    """
+
+    # Here we setup the jacobian matrix and calculate the derivative
+    jacobian = np.diag(ind)
+    for i in range(len(jacobian)):
+        for j in range(len(jacobian)):
+            if i == j:
+                jacobian[i][j] = ind[i] * (1 - ind[i])
+            else:
+                jacobian[i][j] = -ind[i] * ind[j]
+    return jacobian
+# ------ ACTIVATION FUNCTIONS END ------
+
+
+class LayerMethods(Enum):
+    # This enum class contains the standard strings for all layer activation functions.
+    # Activation is for the activation step, and the derivative is for back propagation
+    activation = 'activation'
+    derivative = 'derivative'
+
+
+class LayerFunctions(Enum):
+    # This enum class contains the different functions that have been implemented.
+    sigmoid = 'sigmoid'
+    relu = 'relu'
+    softmax = 'softmax'
+
+
+# noinspection PyMethodParameters
+def functionDecoder(funcName: LayerFunctions) -> Union[Dict[LayerMethods, Union[Callable[[np.ndarray], np.ndarray]]]]:
+    """
+    This functions takes a LayerFunctions string type, and returns the related functions for said string.
+    Eks: for sigmoid, it returns a dictionary of layer methods for activation and the derivative of the sigmoid
+    :param funcName: LayerFunctions class string
+    :return Dictionary of layer methods
+    """
+    switcher = {
+        LayerFunctions.sigmoid: {
+            LayerMethods.activation: sigmoid,
+            LayerMethods.derivative: sigmoidDerived
+        },
+        LayerFunctions.relu: {
+            LayerMethods.activation: relu,
+            LayerMethods.derivative: reluDerived
+        },
+        LayerFunctions.softmax: {
+            LayerMethods.activation: sigmoid,
+            LayerMethods.derivative: sigmoid
+        }
+    }
+    return switcher.get(funcName, lambda: print('Invalid function'))
 
 
 class Net:
@@ -28,6 +128,7 @@ class Net:
         self.trainingLabels = labels
         self.hiddenLayers = []
         self.hiddenBiases = []
+        self.activationFunctions = []
         self.learningRate = learningRate
 
         # Here we save our errors each round so that we can plot our convergence rate,
@@ -35,23 +136,28 @@ class Net:
         self.errorRates = []
         self.xAxis = []
 
-    def addHiddenLayer(self, layer: np.ndarray, bias: np.ndarray) -> None:
+    def addHiddenLayer(self, layer: np.ndarray, bias: np.ndarray, activationFunction: LayerFunctions) -> None:
         """
         # Add a 2D matrix layer of neurons to the hidden layer of the network with their biases
         :param layer: A matrix of our layers weights
         :param bias: A vector of our layers biases
+        :param activationFunction: An activation function found in the LayerFunctions class
         """
 
         self.hiddenLayers.append(layer)
         self.hiddenBiases.append(bias)
+        self.activationFunctions.append(activationFunction)
 
-    def createNeuronLayer(self, layerSize: int = 1) -> (np.ndarray, np.ndarray):
+    def createNeuronLayer(self, layerSize: int = 1, activationFunction: LayerFunctions = LayerFunctions.sigmoid) -> (np.ndarray, np.ndarray, LayerFunctions):
         """
         This function creates a 2D numpy matrix that represents on layer of the hidden layers inside the network
         It takes one parameter layerSize, that simply determines how many neurons there are in the layer
         If returns the created layer, after having added it to the network
+        :param activationFunction: An activation function found in the LayerFunctions class
         :param layerSize: Explains how many neurons we have in this new layer.
-        :rtype: np.ndarray it returns the layer, which is in our case the weights and biases for each neuron (w, b)
+        :rtype: np.ndarray it returns the layer,
+                which is in our case the weights and biases
+                for each neuron (w, b), and the activation function
         """
 
         # We check to see how many weights we need to add to each neuron.
@@ -68,8 +174,8 @@ class Net:
         for i in range(layerSize-1):
             layer = np.vstack([layer, np.random.rand(numWeights)])
         # We add the layer to the network
-        self.addHiddenLayer(layer, bias)
-        return layer, bias
+        self.addHiddenLayer(layer, bias, activationFunction)
+        return layer, bias, activationFunction
 
     def feedForward(self, ind: np.ndarray, training=False) -> Union[Tuple[np.ndarray, List[List[np.ndarray]]], np.ndarray]:
         """
@@ -92,9 +198,9 @@ class Net:
             for i in range(len(self.hiddenLayers)):
                 layer = self.hiddenLayers[i]
                 bias = self.hiddenBiases[i].T
-
+                ActivationFunction = functionDecoder(self.activationFunctions[i]).get(LayerMethods.activation)
                 # Here we calculate our current layers activation functions and save them
-                out = sigmoid(np.matmul(layer, results[i])+bias)
+                out = ActivationFunction(np.matmul(layer, results[i])+bias)
                 results.append(out)
 
             # We here save our results if we had more than one data element given
@@ -139,14 +245,13 @@ class Net:
             for i in reversed(range(len(weights))):
                 currentLayerOut = layerOutPut[i+1]
                 pastLayerOut = layerOutPut[i]
-
+                derivedFunction = functionDecoder(self.activationFunctions[i]).get(LayerMethods.derivative)
                 # Here we calculate the derivative of the sigmoid function regarding our current layers output
-                derivativeSigmoid = np.multiply(currentLayerOut, (1-currentLayerOut))
+                derivative = derivedFunction(currentLayerOut)
 
                 # We now calculate the gradients, that we then can use later again
-                gradient = np.multiply(np.multiply(derivativeSigmoid, hiddenErrors), self.learningRate)
+                gradient = np.multiply(np.multiply(derivative, hiddenErrors), self.learningRate)
                 weightGrad = np.matmul(gradient, pastLayerOut.T)
-
                 # We calculate the errors for the next layer, which depends on the current error and the current
                 # weights influence on said error
                 hiddenErrors = np.matmul(weights[i].T, hiddenErrors)
@@ -244,6 +349,7 @@ class Net:
         for i in range(len(self.hiddenBiases)):
             bias.append(self.hiddenBiases[i].ravel())
         np.save(fileName + 'b', bias)
+        np.save(fileName + 'f', self.activationFunctions)
 
     def loadNetwork(self, fileName: str) -> None:
         """
@@ -257,6 +363,8 @@ class Net:
             self.hiddenLayers.append(l)
         for b in np.load(fileName + 'b.npy'):
             self.hiddenBiases.append(np.array([b]))
+        for f in np.load(fileName + 'f.npy'):
+            self.activationFunctions.append(f)
 
     def trainNetwork(self, rounds: int = 100, batchSize: int = 20, sampleCost: int = 20, verbose: bool = True, saveRate: int = 20) -> None:
         """

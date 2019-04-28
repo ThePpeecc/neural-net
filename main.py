@@ -1,5 +1,5 @@
 import numpy as np
-from net import Net
+from net import Net, LayerFunctions
 
 flowerData = np.loadtxt('data/iris-flower-data', dtype=str, delimiter=',')
 np.set_printoptions(suppress=True)
@@ -31,12 +31,13 @@ trainingLabels = np.delete(labels, permutation, axis=0)
 trainingVectors = np.delete(dataVectors, permutation, axis=0)
 
 
-nn = Net(trainingVectors, trainingLabels, learningRate=0.01)
-nn.createNeuronLayer(10)
-nn.createNeuronLayer(10)
-nn.createNeuronLayer(3)
+nn = Net(trainingVectors, trainingLabels, learningRate=0.001)
 
-nn.trainNetwork(5000, sampleCost=130)
+nn.createNeuronLayer(10, LayerFunctions.sigmoid)
+nn.createNeuronLayer(10, LayerFunctions.relu)
+nn.createNeuronLayer(3, LayerFunctions.softmax)
+nn.trainNetwork(1000, sampleCost=130)
+
 
 print('Accuracy 🎯: ' + str(nn.accuracy(testVectors, testLabels)))
 print('Total Error: ' + str(nn.costRate(testVectors, testLabels)))

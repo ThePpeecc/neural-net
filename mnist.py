@@ -43,16 +43,20 @@ def fixData(data):
     return preprocess(np.array(updatedData))
 
 
-testData = fixData(read_idx('data/mnist-dataset/t10k-images-idx3-ubyte').astype(float))
-testLabels = fixLabels(read_idx('data/mnist-dataset/t10k-labels-idx1-ubyte'))
+# testData = fixData(read_idx('data/mnist-dataset/t10k-images-idx3-ubyte').astype(float))
+# testLabels = fixLabels(read_idx('data/mnist-dataset/t10k-labels-idx1-ubyte'))
+#
+# trainingData = fixData(read_idx('data/mnist-dataset/train-images-idx3-ubyte').astype(float))
+# trainingLabels = fixLabels(read_idx('data/mnist-dataset/train-labels-idx1-ubyte'))
 
-trainingData = fixData(read_idx('data/mnist-dataset/train-images-idx3-ubyte').astype(float))
-trainingLabels = fixLabels(read_idx('data/mnist-dataset/train-labels-idx1-ubyte'))
-
-nn = Net(inputs=trainingData, labels=trainingLabels, learningRate=0.1)
+nn = Net(inputs=np.ndarray, labels=np.ndarray, learningRate=0.1)
 
 # Here we load in the final mnist model, with an accuracy of around 0.94
 nn.loadNetwork('./models/mnist')
+
+garbage = np.random.rand(28*28)
+displayMnistImage(garbage)
+print(nn.predict(garbage, getPercentage=True))
 
 # test = np.random.permutation(testData)[0:1000]
 # for i in range(len(test)):
@@ -60,19 +64,21 @@ nn.loadNetwork('./models/mnist')
 #     if np.isin(res.ravel(), 1).sum() == 1:
 #         displayMnistImage(testData[i])
 
-x = 0
-y = 0
-figure, axarr = plt.subplots(6, 6, figsize=(24, 24))
-
-for w in nn.hiddenLayers[0]:
-    ax = axarr[x, y]
-    im = ax.imshow(w.reshape((28, 28)))
-    figure.colorbar(im, ax=ax)
-    x += 1
-    if x > 5:
-        x = 0
-        y += 1
-plt.show()
+# x = 0
+# y = 0
+# figure, axarr = plt.subplots(6, 6, figsize=(24, 24))
+#
+# for w in nn.hiddenLayers[0]:
+#     ax = axarr[x, y]
+#     im = ax.imshow(w.reshape((28, 28)))
+#     figure.colorbar(im, ax=ax)
+#     x += 1
+#     if x > 5:
+#         x = 0
+#         y += 1
+# plt.show()
 # figure.savefig('neurons.png')
-print('Accuracy 🎯: ' + str(nn.accuracy(testData, testLabels)))
-print('Total Error: ' + str(nn.costRate(testData, testLabels)))
+# print('Test set Accuracy 🎯: ' + str(nn.accuracy(testData, testLabels)))
+# print('Test set Total Error: ' + str(nn.costRate(testData, testLabels)))
+# print('Training set Accuracy 🎯: ' + str(nn.accuracy(trainingData, trainingLabels)))
+# print('Training set Total Error: ' + str(nn.costRate(trainingData, trainingLabels)))

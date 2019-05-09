@@ -31,13 +31,13 @@ trainingLabels = np.delete(labels, permutation, axis=0)
 trainingVectors = np.delete(dataVectors, permutation, axis=0)
 
 
-nn = Net(trainingVectors, trainingLabels, learningRate=0.001)
+nn = Net(trainingVectors, trainingLabels, learningRate=0.001, lam=0.00001)
 
-nn.createNeuronLayer(10, LayerFunctions.sigmoid)
-nn.createNeuronLayer(10, LayerFunctions.relu)
-nn.createNeuronLayer(3, LayerFunctions.softmax)
-nn.trainNetwork(1000, sampleCost=130)
+# nn.setSeed()
 
+nn.createNeuronLayer(6, LayerFunctions.relu)
+nn.createNeuronLayer(3, LayerFunctions.relu)
+nn.trainNetwork(1000, sampleCost=130, batchSize=20)
 
 print('Accuracy 🎯: ' + str(nn.accuracy(testVectors, testLabels)))
 print('Total Error: ' + str(nn.costRate(testVectors, testLabels)))

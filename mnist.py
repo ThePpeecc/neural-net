@@ -1,7 +1,7 @@
 import struct
 import numpy as np
 import matplotlib.pyplot as plt
-from net import Net
+from net import Net, LayerFunctions
 
 
 def read_idx(filename):
@@ -43,20 +43,34 @@ def fixData(data):
     return preprocess(np.array(updatedData))
 
 
-# testData = fixData(read_idx('data/mnist-dataset/t10k-images-idx3-ubyte').astype(float))
-# testLabels = fixLabels(read_idx('data/mnist-dataset/t10k-labels-idx1-ubyte'))
+testData = fixData(read_idx('data/mnist-dataset/t10k-images-idx3-ubyte').astype(float))
+testLabels = fixLabels(read_idx('data/mnist-dataset/t10k-labels-idx1-ubyte'))
+
+trainingData = fixData(read_idx('data/mnist-dataset/train-images-idx3-ubyte').astype(float))
+trainingLabels = fixLabels(read_idx('data/mnist-dataset/train-labels-idx1-ubyte'))
+
+nn = Net(inputs=trainingData, labels=trainingLabels, learningRate=0.0001)
 #
-# trainingData = fixData(read_idx('data/mnist-dataset/train-images-idx3-ubyte').astype(float))
-# trainingLabels = fixLabels(read_idx('data/mnist-dataset/train-labels-idx1-ubyte'))
+# nn.createNeuronLayer(16, LayerFunctions.relu)
+# nn.createNeuronLayer(32, LayerFunctions.sigmoid)
+# nn.createNeuronLayer(10, LayerFunctions.sigmoid)
 
-nn = Net(inputs=np.ndarray, labels=np.ndarray, learningRate=0.1)
-
-# Here we load in the final mnist model, with an accuracy of around 0.94
 nn.loadNetwork('./models/mnist')
-
-garbage = np.random.rand(28*28)
-displayMnistImage(garbage)
-print(nn.predict(garbage, getPercentage=True))
+# nn.trainNetwork(500, saveRate=10, batchSize=20, sampleCost=20)
+# nn.saveNetwork('./models/mnist')
+# wSum = 0
+# for layer in nn.hiddenLayers:
+#     wSum += np.sum(layer)
+# print(wSum)
+#
+# bSum = 0
+# for layer in nn.hiddenBiases:
+#     bSum += np.sum(layer)
+# print(bSum)
+# Here we load in the final mnist model, with an accuracy of around 0.94
+# garbage = np.random.rand(28*28)
+# displayMnistImage(garbage)
+# print(nn.predict(garbage, getPercentage=True))
 
 # test = np.random.permutation(testData)[0:1000]
 # for i in range(len(test)):
@@ -78,7 +92,7 @@ print(nn.predict(garbage, getPercentage=True))
 #         y += 1
 # plt.show()
 # figure.savefig('neurons.png')
-# print('Test set Accuracy 🎯: ' + str(nn.accuracy(testData, testLabels)))
-# print('Test set Total Error: ' + str(nn.costRate(testData, testLabels)))
+print('Test set Accuracy 🎯: ' + str(nn.accuracy(testData, testLabels)))
+print('Test set Total Error: ' + str(nn.costRate(testData, testLabels)))
 # print('Training set Accuracy 🎯: ' + str(nn.accuracy(trainingData, trainingLabels)))
 # print('Training set Total Error: ' + str(nn.costRate(trainingData, trainingLabels)))

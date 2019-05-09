@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from typing import Union, Tuple, List, Dict, Callable
 from progress.bar import Bar
+from pync import Notifier
 from enum import Enum
 # np.random.seed(0)
 np.set_printoptions(suppress=True)
@@ -117,12 +118,13 @@ def functionDecoder(funcName: LayerFunctions) -> Union[Dict[LayerMethods, Union[
 
 
 class Net:
-    def __init__(self, inputs: np.ndarray, labels: np.ndarray, learningRate: float = 0.1) -> None:
+    def __init__(self, inputs: np.ndarray, labels: np.ndarray, learningRate: float = 0.1, lam: float = 0.0001) -> None:
         """
         Simply the initializer for our network
         :param inputs: This is the inputs that our network needs to train itself on
         :param labels: This is the labels we use to perform back propagation and gradient decent when learning
         :param learningRate: This is the learning rate of our gradient decent
+        :param lam: This is the lambda value used in L2 regularisation
         """
         self.trainingSet = inputs
         self.trainingLabels = labels
@@ -130,11 +132,21 @@ class Net:
         self.hiddenBiases = []
         self.activationFunctions = []
         self.learningRate = learningRate
+        self.lam = lam
+        self.seed = None
 
         # Here we save our errors each round so that we can plot our convergence rate,
         # and x axis is where we took our error measurements
         self.errorRates = []
         self.xAxis = []
+
+    def setSeed(self, seed: int = 0) -> None:
+        """
+        Simply sets the seed for the network
+        :param seed: The seed to be set
+        """
+        self.seed = seed
+        np.random.seed(seed)
 
     def addHiddenLayer(self, layer: np.ndarray, bias: np.ndarray, activationFunction: LayerFunctions) -> None:
         """
@@ -223,14 +235,30 @@ class Net:
 
         # First we feed our network the given data and harvest the output
         outPuts, layerOutPuts = self.feedForward(trainSets, training=True)
-        # We then calculate our output errors
-        outPutErrors = targets.reshape(outPuts.shape)-outPuts
+
+        lam = self.lam
+        wSum = 0
+        wSumDev = 0
+        weights = []
+        numOut = len(outPuts) > 0 if len(outPuts) else 1
+        m = 1/numOut
 
         # Here we copy our weights in the network
-        weights = []
         for layer in self.hiddenLayers:
             weights.append(layer.copy())
+            wSum += np.sum(np.square(layer))
+            wSumDev += np.sum(layer)
 
+        # Here we calculate the L2 regularization values
+        L2reg = m*0.5*lam*wSumDev
+        L2regDev = m*lam*wSumDev
+        # print(L2reg)
+        # print(L2regDev)
+        # We then calculate our output errors
+        # Update with new error functions, like cross entropy
+        outPutErrors = np.add(targets.reshape(outPuts.shape)-outPuts, L2reg)
+        # print(outPutErrors)
+        # exit(0)
         # Now we are running through all of our errors that we have from our inputs, and perform back propagation on
         # all of them
         for j in range(len(outPutErrors)):
@@ -251,7 +279,7 @@ class Net:
 
                 # We now calculate the gradients, that we then can use later again
                 gradient = np.multiply(np.multiply(derivative, hiddenErrors), self.learningRate)
-                weightGrad = np.matmul(gradient, pastLayerOut.T)
+                weightGrad = np.matmul(gradient, pastLayerOut.T)-L2regDev
                 # We calculate the errors for the next layer, which depends on the current error and the current
                 # weights influence on said error
                 hiddenErrors = np.matmul(weights[i].T, hiddenErrors)
@@ -395,7 +423,7 @@ class Net:
                     y += 1
                     self.xAxis.append(i)
                     permutation = np.random.permutation(len(self.trainingSet))[0:sampleCost]
-                    self.errorRates.append(self.costRate(self.trainingSet[permutation], self.trainingLabels[permutation]))
+                    self.errorRates.append(self.costRate(self.trainingSet[permutation], self.trainingLabels[permutation])/batchSize)
 
             if len(trainCopy) < batchSize:
                 # We are running low on our training set, so we run back prop on the last remaining data
@@ -415,8 +443,9 @@ class Net:
                 trainCopyLabel = np.delete(trainCopyLabel, permutation, axis=0)
 
         if verbose:
-            print('Finished training 🎓')
+            Notifier.notify('The network have finished training', title='Finished training 🎓')
             bar.finish()
+            print('Finished training 🎓')
             plt.plot(self.xAxis, self.errorRates, linewidth=2.0)
             plt.ylabel('Our error rates each round')
             plt.xlabel('Measurement points')
